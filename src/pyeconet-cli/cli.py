@@ -5,6 +5,7 @@ from typing_extensions import Annotated
 from pyeconet import EcoNetApiInterface
 from pyeconet.equipment import EquipmentType
 from pyeconet.equipment.thermostat import Thermostat
+from pyeconet.equipment.water_heater import WaterHeater
 
 import utils
 
@@ -68,40 +69,51 @@ async def list(
         utils.printDeviceNameId(water_heater)
 
 @app.async_command()
-async def info(
+async def device(
     email: Annotated[str, emailOption],
     password: Annotated[str, passwordOption],
     id: Annotated[str, idArgument],
+    showInfo: Annotated[bool, typer.Option(
+        "--info",
+        "-i",
+        help="Shows details of the device."
+    )] = False,
+    showStatus: Annotated[bool, typer.Option(
+        "--status",
+        "-s",
+        help="Shows current status of the device."
+    )] = False,
+    showTemps: Annotated[bool, typer.Option(
+        "--temps",
+        "-t",
+        help="Shows current temperatures and programming of the device."
+    )] = False,
 ):
-    """Prints metadata about the specified device."""
+    """Prints the status of the specified device. Specifying `-ist` or none of those options will show all the information available."""
 
     api = await EcoNetApiInterface.login(email, password)
     device = await utils.getDevice(api, id)
-    utils.printDeviceInfo(device)
 
-@app.async_command()
-async def status(
-    email: Annotated[str, emailOption],
-    password: Annotated[str, passwordOption],
-    id: Annotated[str, idArgument],
-):
-    """Prints status and configuration of the specified device."""
+    showAll = not (showInfo | showStatus | showTemps)
 
-    api = await EcoNetApiInterface.login(email, password)
-    device = await utils.getDevice(api, id)
-    utils.printThermostatStatus(device)
+    if (showAll | showInfo):
+        utils.printDeviceInfo(device)
+    
+    if (showAll | showStatus):
+        if (type(device) is Thermostat):
+            utils.printThermostatStatus(device)
+        elif (type(device) is WaterHeater):
+            utils.printWaterHeaterStatus(device)
+        else:
+            raise TypeError(format("Unsupported Type: %s", type(device)))
 
-@app.async_command()
-async def conditions(
-    email: Annotated[str, emailOption],
-    password: Annotated[str, passwordOption],
-    id: Annotated[str, idArgument],
-):
-    """Prints current conditions and programming for the specified device."""
-
-    api = await EcoNetApiInterface.login(email, password)
-    device = await utils.getDevice(api, id)
-    utils.printThermostatConditions(device)
+    if (showAll | showTemps):
+        if (type(device) is Thermostat):
+            utils.printThermostatTemps(device)
+        elif (type(device) is WaterHeater):
+            utils.printWaterHeaterTemps(device)
+        else:
+            raise TypeError(format("Unsupported Type: %s", type(device)))
 
 
 
